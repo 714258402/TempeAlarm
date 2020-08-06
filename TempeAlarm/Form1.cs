@@ -158,6 +158,7 @@ namespace TempeAlarm
                 (MethodInvoker)delegate
                 {
                     this.notifyIcon1.Icon = iconTemp;
+                    this.Icon = iconTemp;
                 });
             DestroyIcon(iconTemp.Handle);
             ((System.Timers.Timer)source).Enabled = true;

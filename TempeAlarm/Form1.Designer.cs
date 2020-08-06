@@ -134,7 +134,7 @@
             this.label4.Name = "label4";
             this.label4.Size = new System.Drawing.Size(47, 12);
             this.label4.TabIndex = 4;
-            this.label4.Text = "1.0.0.7";
+            this.label4.Text = "1.0.0.8";
             // 
             // Form1
             // 
