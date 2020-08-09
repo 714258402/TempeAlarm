@@ -12,6 +12,7 @@ using System.Timers;
 using OpenHardwareMonitor.Hardware;
 using OpenHardwareMonitor;
 using System.Runtime.InteropServices;
+using VideoPlayerController;
 
 
 namespace TempeAlarm
@@ -21,18 +22,18 @@ namespace TempeAlarm
     {
         [System.Runtime.InteropServices.DllImport("user32.dll", CharSet = CharSet.Auto)]
         extern static bool DestroyIcon(IntPtr handle);
-        float CPUTempe = 0;
-        string TopCore = "Core?";
-        UpdateVisitor updateVisitor = new UpdateVisitor();
-        Computer computer = new Computer();
-        System.Drawing.Icon iconTemp = null;
-        MessageBoxTimeOut mb = new MessageBoxTimeOut();
-        string Wordstr ="00";
-        Int32 Red_color_F = 0, Green_color_F = 0, SizeOfFontbit = 32;
-        Size TextSize;
-        Bitmap bTemp;
-        System.IntPtr iconHandle;
-        Font Myfont;
+        private float CPUTempe = 0;
+        private string TopCore = "Core?";
+        private UpdateVisitor updateVisitor = new UpdateVisitor();
+        private Computer computer;
+        private System.Drawing.Icon iconTemp = null;
+        private MessageBoxTimeOut mb = new MessageBoxTimeOut();
+        private string Wordstr = "00";
+        private Int32 Red_color_F = 0, Green_color_F = 0, SizeOfFontbit = 32;
+        private Size TextSize;
+        private Bitmap bTemp;
+        private System.IntPtr iconHandle;
+        private Font Myfont;
 
 
 
@@ -62,18 +63,40 @@ namespace TempeAlarm
             {
                 if (this.WindowState == FormWindowState.Minimized)
                 {
-                    this.Show();
-                    this.WindowState = FormWindowState.Normal; //还原窗体
+                    Invoke((MethodInvoker)delegate
+                    {
+                        this.Show();
+                        this.WindowState = FormWindowState.Normal; //还原窗体
+                    });
                 }
                 else if (this.WindowState == FormWindowState.Normal)
                 {
-                    this.WindowState = FormWindowState.Minimized;//最小化
-                    this.Hide();
+                    Invoke((MethodInvoker)delegate
+                    {
+                        this.WindowState = FormWindowState.Minimized;//最小化
+                        this.Hide();
+                    });
                 }
             });
         }
         private void Form1_Load(object sender, EventArgs e)
         {
+            //PersistentSettings settings = new PersistentSettings();
+            computer = new Computer();
+            computer.Open();
+
+            try
+            {
+                computer.MainboardEnabled = true;
+                computer.CPUEnabled = true;
+                computer.RAMEnabled = true;
+                computer.GPUEnabled = true;
+                computer.HDDEnabled = true;
+            }
+            catch { }
+
+
+
             Myfont = new Font(new FontFamily("Arial"), SizeOfFontbit, FontStyle.Bold);
             System.Timers.Timer timer = new System.Timers.Timer();
             timer.Enabled = true;
@@ -84,6 +107,8 @@ namespace TempeAlarm
             tm.AutoReset = false;
             tm.Enabled = true;
             tm.Elapsed += new ElapsedEventHandler(Miniwindow);
+
+
 
         }
         private void Miniwindow(object source, ElapsedEventArgs e)
@@ -96,10 +121,19 @@ namespace TempeAlarm
         {
             ((System.Timers.Timer)source).Enabled = false;
 
+            try
+            {
+                var t = AudioManager.GetComMicVolume();
+                if (t != (int)numericUpDown2.Value) // F*ck skype for business.
+                    AudioManager.SetComMivVolume((int)numericUpDown2.Value);
+            }
+            catch
+            {
+                // Don't care. Happens if no microphone.
+            }
 
             CPUTempe = 0;
 
-            computer.Open();
             computer.Accept(updateVisitor);
             int i = 0, j = 0;
             for (i = 0; i < computer.Hardware.Length; i++)
@@ -123,14 +157,20 @@ namespace TempeAlarm
                 }
             }
 
+            float numericUpDown1now;
             Invoke(
                 (MethodInvoker)delegate
-                { label3.Text = TopCore + "温度：" + CPUTempe.ToString() + "℃"; });
-            if (CPUTempe > Convert.ToDouble(numericUpDown1.Value))
-            {
-                Console.Beep(350, 2000);
-                mb.Show(9000, TopCore + "温度：" + CPUTempe.ToString() + "℃", "警告(窗体9秒后自动关闭...)");
-            }
+                {
+                    label3.Text = TopCore + "温度：" + CPUTempe.ToString() + "℃";
+                    numericUpDown1now = (float)numericUpDown1.Value;
+
+
+                    if (CPUTempe > numericUpDown1now)
+                    {
+                        Console.Beep(350, 2000);
+                        mb.Show(9000, TopCore + "温度：" + CPUTempe.ToString() + "℃", "警告(窗体9秒后自动关闭...)");
+                    }
+                });
 
             Wordstr = ((Int32)CPUTempe).ToString();
             Red_color_F = Convert.ToInt32(CPUTempe * 15 - 660.0f);
@@ -253,6 +293,27 @@ namespace TempeAlarm
             }
         }
 
+        private void Form1_FormClosing(object sender, FormClosingEventArgs e)
+        {
+            computer.Close();
+        }
+
+        private void trackBar1_Scroll(object sender, EventArgs e)
+        {
+            Invoke((MethodInvoker)delegate
+            {
+                numericUpDown2.Value = trackBar1.Value;
+            });
+        }
+
+        private void numericUpDown2_ValueChanged(object sender, EventArgs e)
+        {
+            Invoke((MethodInvoker)delegate
+            {
+                trackBar1.Value = (int)numericUpDown2.Value;
+            });
+        }
+
         private static Bitmap DrawTextBmp(string ch, Font font, Color color, Size TextSize, int x, int y, int w, int h)
         {
             //创建此大小的图片
@@ -340,6 +401,8 @@ namespace TempeAlarm
             g.Dispose();
             return bmp;
         }
+
+
 
     }
 
